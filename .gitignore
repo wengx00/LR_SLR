@@ -8,3 +8,5 @@
 *.sln
 *.sw?
 *.pro.user
+
+.VSCodeCounter
