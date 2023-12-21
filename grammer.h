@@ -19,7 +19,7 @@ struct Node {
 
     Node(std::string key, NodeType type, int rawsIndex, int rawIndex): key(key), type(type), rawsIndex(rawsIndex), rawIndex(rawIndex) {}
 
-    const bool operator==(const Node& node) {
+    bool operator==(const Node& node) const {
         return node.key == key && node.type == type && node.rawsIndex == rawsIndex && node.rawIndex == rawIndex;
     }
 };
@@ -53,9 +53,11 @@ private:
 
     void initFirst(); // 生成First集合
     void initFollow(); // 生成Follow集合
+    void extend(std::vector<Node>&); // 扩展DFA某节点的推导式
     void extend(int); // 扩展DFA某节点的推导式
     void initRelation(); // 生成DFA图、规约关系
     void initIsSLR(); // 初始化是否SLR(1)
+    int findState(std::vector<Node>&); // 是否包含此DFA节点
 public:
     Grammer(std::string);
 

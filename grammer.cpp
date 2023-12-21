@@ -214,16 +214,15 @@ void Grammer::initFollow() {
     }
 }
 
-void Grammer::extend(int state) {
-    vector<Node> &nodes = dfa[state];
+void Grammer::extend(vector<Node>& nodes) {
     for (int i = 0; i < nodes.size(); ++i) {
-        Node &node = nodes[i];
+        Node& node = nodes[i];
         if (node.type == NodeType::BACKWARD)
             continue; // 跳过规约节点
         string cur = formula[node.key][node.rawsIndex][node.rawIndex]; // 指示的符号
         if (!notEnd.count(cur))
             continue; // 终结字符不可扩展
-        vector<vector<string>> &rawsOfCur = formula[cur]; // 非终结字符为Key的推导式
+        vector<vector<string>>& rawsOfCur = formula[cur]; // 非终结字符为Key的推导式
         for (int j = 0; j < rawsOfCur.size(); ++j) {
             int rawOffset = 0;
             for (; rawOffset < rawsOfCur[j].size(); ++rawOffset) {
@@ -244,6 +243,10 @@ void Grammer::extend(int state) {
     }
 }
 
+void Grammer::extend(int state) {
+    extend(dfa[state]);
+}
+
 void Grammer::initRelation() {
     // 初始节点 => start指示的推导式的第一条的第一个符号
     vector<Node> beginState;
@@ -256,11 +259,11 @@ void Grammer::initRelation() {
         extend(cur); // 扩展当前DFA节点(可能右侧项目含有非终结符号)
         // 遍历DFA节点上的每一个项目
         for (int it = 0; it < dfa[cur].size(); ++it) {
-            Node &item = dfa[cur][it]; // 取出当前项
+            Node& item = dfa[cur][it]; // 取出当前项
             if (item.type == NodeType::BACKWARD) {
                 // 规约项
                 set<string> followOfItem = getFollow(item.key);
-                for (const auto &el : followOfItem) {
+                for (const auto& el : followOfItem) {
                     if (backwards[cur].count(el)) {
                         // 存在交集，非SLR(1)
                         isSLR = false;
@@ -285,7 +288,7 @@ void Grammer::initRelation() {
             if (forwards[cur].count(raw)) {
                 // 已经存在该移进关系
                 int target = forwards[cur][raw];
-                vector<Node> &next = dfa[target];
+                vector<Node>& next = dfa[target];
                 if (!count(next.begin(), next.end(), instance)) {
                     // 如果下一DFA节点中未存在该Instance状态 -> 加入下一DFA节点中
                     dfa[target].push_back(instance);
@@ -293,17 +296,13 @@ void Grammer::initRelation() {
                 continue;
             }
             // 未存在该移进关系
-            int target = 0; // 移进的DFA目标
-            for (; target < dfa.size(); ++target) {
-                vector<Node> &next = dfa[target]; // 下一移进DFA节点
-                if (count(next.begin(), next.end(), instance))
-                    break; // 该Instance状态在某个DFA节点中被找到
-            }
-            if (target == dfa.size()) {
-                // 该Instance状态不存在于任何DFA节点中 -> 新增一个DFA节点
-                vector<Node> state;
-                state.push_back(instance);
-                dfa.push_back(state);
+            vector<Node> perhapsNewState{ instance };
+            extend(perhapsNewState);
+            int target = findState(perhapsNewState);
+            if (target == -1) {
+                // 该状态不存在于任何DFA节点中 -> 新增一个DFA节点
+                dfa.push_back(perhapsNewState);
+                target = dfa.size() - 1;
             }
             // 加入移进关系
             forwards[cur][raw] = target;
@@ -337,6 +336,22 @@ void Grammer::initIsSLR() {
             }
         }
     }
+}
+
+int Grammer::findState(vector<Node>& current) {
+    for (int i = 0; i < dfa.size(); ++i) {
+        auto& state = dfa[i];
+        bool exist = true;
+        if (current.size() != state.size()) continue;
+        for (auto& node : current) {
+            if (!count(state.begin(), state.end(), node)) {
+                exist = false;
+                break;
+            }
+        }
+        if (exist) return i;
+    }
+    return -1;
 }
 
 bool Grammer::slr() { return isSLR; }
